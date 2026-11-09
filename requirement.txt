@@ -1,0 +1,16 @@
+yt_dlp 
+ollama
+demjson3
+plotly
+wordcloud
+textblob
+Pillow==9.5.0
+torch==2.0.0+cu118
+torchaudio==2.0.0+cu118
+git+https://github.com/m-bain/whisperx.git
+moviepy
+google-auth==2.14.0
+google-auth-oauthlib==0.5.3
+google-auth-httplib2==0.1.0
+google-api-python-client==2.53.0
+-f https://download.pytorch.org/whl/torch_stable.html
