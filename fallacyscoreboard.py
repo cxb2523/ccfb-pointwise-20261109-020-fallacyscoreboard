@@ -10,6 +10,7 @@ from moviepy.editor import VideoFileClip
 from multiprocessing import Process
 
 from llm import detect_fallacies
+from transcript_source import TranscriptSource
 from video_edit import overlay_fallacies_on_video, overlay_fallacies_on_vertical_video_with_bars
 from dashboard import create_dashboard
 
@@ -136,6 +137,51 @@ def process_vertical_video(video_name, fallacy_analysis_path, final_vertical_vid
         overlay_fallacies_on_vertical_video_with_bars(video_name, fallacy_analysis_path, final_vertical_video_name)
     else:
         print("Vertical video already updated with fallacies.")
+
+def transcribe_source_to_text(source, text_path, cache_dir="Files", **transcript_source_kwargs):
+    """Slice a local media file or live stream URL into transcript lines.
+
+    Uses TranscriptSource to produce time-coded text segments (handling
+    local files and m3u8/rtmp streams alike) and writes them in the same
+    "start-end speaker: text" format llm.py's detect_fallacies() expects,
+    so the two input kinds can feed the existing fallacy-analysis step
+    unchanged.
+    """
+    transcript_source = TranscriptSource(source, cache_dir=cache_dir, **transcript_source_kwargs)
+    with open(text_path, 'w', encoding='utf-8') as f:
+        for i, line in enumerate(transcript_source.lines()):
+            if i > 0:
+                f.write("\n")
+            f.write(line)
+    return transcript_source
+
+
+def fallacy_detection_pipeline_from_source(source, output_path, name=None, **transcript_source_kwargs):
+    """Run fallacy detection on a local media file or a live stream URL.
+
+    This is the TranscriptSource-backed counterpart to
+    fallacy_detection_pipeline(), which only handles YouTube downloads
+    transcribed via WhisperX.
+    """
+    if name is None:
+        name = os.path.splitext(os.path.basename(source))[0] or "stream"
+
+    output_path = os.path.join(output_path, name)
+    os.makedirs(output_path, exist_ok=True)
+
+    text_path = os.path.join(output_path, name + ".txt")
+    print("Slicing and transcribing source...")
+    transcript_source = transcribe_source_to_text(source, text_path, cache_dir=output_path,
+                                                    **transcript_source_kwargs)
+
+    fallacy_analysis_path = os.path.join(output_path, name + "_fallacy_analysis.json")
+    temp_file = os.path.join(output_path, name + "_temp.json")
+    print("Detecting fallacies...")
+    detect_fallacies(text_path, fallacy_analysis_path, temp_file)
+
+    print("Done!")
+    return fallacy_analysis_path, transcript_source.stats
+
 
 def fallacy_detection_pipeline(youtube_url, output_path, create_video=True):
     name = youtube_url.split('=')[-1]

@@ -1,6 +1,7 @@
-yt_dlp 
+yt_dlp
 ollama
 demjson3
+static_ffmpeg
 plotly
 wordcloud
 textblob
